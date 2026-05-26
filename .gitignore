@@ -1,0 +1,22 @@
+# Visual Studio cache
+.vs/
+
+# Build output
+Debug/
+Release/
+x64/
+x86/
+
+# Compiled objects
+*.obj
+*.exe
+*.pdb
+*.ilk
+*.lib
+
+# User-specific files
+*.user
+
+# CMake
+CMakeFiles/
+CMakeCache.txt

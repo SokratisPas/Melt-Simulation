@@ -1,0 +1,9 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="Melt-Simulation/Melt-Simulation.vcxproj" Id="ac5f67ee-8338-4022-b362-567d052b12a8">
+    <Platform Solution="Debug|x64" Project="Win32" />
+  </Project>
+</Solution>

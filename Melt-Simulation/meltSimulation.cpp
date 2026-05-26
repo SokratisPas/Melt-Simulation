@@ -19,16 +19,34 @@
 
 #include "headerFiles/Shader.h"
 
-// Number of atoms = 4 * n^3
-// N = 256, 500, 864, 1372, 2048, 2916, 4000
+// ==========================================================================================================
+// ==========================================================================================================
+// ====================================== meltSimulation.cpp ================================================
+// 
+// Simulation of a solid with FCC lattice with Lennard-Jones potential. 
+// In order to have full cube with atoms in every position available use: 
+// Number of atoms = 4 * n^3 , where n = 1, 2, 3, ...
+// For example : N = 256, 500, 864, 1372, 2048, 2916, 4000.
 #define N 2916
-
-// NVT 
+//
+// For the use of the thermostat set USE_THERMOSTAT == 1.
 #define USE_THERMOSTAT 1
-
-// file name
+//
+// Keep in mind that the code creates a file to store the results.
+// For a test run write the results on a fie "dummy.txt" for example.
+// You can define how many steps to truck from the "stepMax" variable.
+// File name :
 #define FILE_NAME "dummy.txt"
-
+//
+// CONTROLS :
+// - Use RIGHT CLICK to move the camera. 
+// - Start to start the simulations (md calculations).
+// - Stop to stop the calculations (also writing on the file stops).
+// - Close to end the programm. 
+// - ESCAPE also closes the window and ends the programm.
+// - Show Cube checkbox to render a cube at the bondaries of the simulation. 
+// ==========================================================================================================
+// ==========================================================================================================
 
 // ==== particle vertex struct =====
 struct particleVertex {
@@ -624,8 +642,6 @@ int main(void)
 
                 ImGui::End();
             }
-
-
             ImGui::End();
         }
 
@@ -724,7 +740,8 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
 }
 
 // make sphere particle
-void generateSphere(float radius, unsigned int sectors, unsigned int stacks, std::vector<particleVertex>& vertices, std::vector<unsigned int>& indices)
+void generateSphere(float radius, unsigned int sectors, unsigned int stacks, std::vector<particleVertex>& vertices,
+                    std::vector<unsigned int>& indices)
 {
     const float PI = 3.14159265359f;
 

@@ -40,6 +40,7 @@
 //
 // CONTROLS :
 // - Use RIGHT CLICK to move the camera. 
+// - Use SCROLL to zoom.
 // - Start to start the simulations (md calculations).
 // - Stop to stop the calculations (also writing on the file stops).
 // - Close to end the programm. 
@@ -198,11 +199,11 @@ int main(void)
     }
 
     // =========== SHADERS ==============
-    Shader particleShader("C:\\Users\\spast\\source\\repos\\Melt-Simulation\\Melt-Simulation\\vertexShaders\\meltSimulation.vert",
-                          "C:\\Users\\spast\\source\\repos\\Melt-Simulation\\Melt-Simulation\\fragmentShaders\\meltSimulation.frag");
+    Shader particleShader("..\\Melt-Simulation\\vertexShaders\\meltSimulation.vert",
+                          "..\\Melt-Simulation\\fragmentShaders\\meltSimulation.frag");
 
-    Shader cubeShader("C:\\Users\\spast\\source\\repos\\Melt-Simulation\\Melt-Simulation\\vertexShaders\\meltSimulation2.vert",
-                      "C:\\Users\\spast\\source\\repos\\Melt-Simulation\\Melt-Simulation\\fragmentShaders\\meltSimulation2.frag");
+    Shader cubeShader("..\\Melt-Simulation\\vertexShaders\\meltSimulation2.vert",
+                      "..\\Melt-Simulation\\fragmentShaders\\meltSimulation2.frag");
 
     // =================================
     // =========== MODEL DATA ==========

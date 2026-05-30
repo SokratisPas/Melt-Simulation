@@ -1344,6 +1344,9 @@
     <ClInclude Include="headerFiles\particle-system.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="headerFiles\orbit-Camera.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="glm\detail\glm.cpp">
@@ -1372,6 +1375,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="dummy.txt" />
+    <Text Include="output\dummy.txt" />
   </ItemGroup>
 </Project>

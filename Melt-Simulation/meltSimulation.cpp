@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <filesystem>
 #include <sstream>
 #include <vector>
 #include <array>
@@ -313,8 +314,11 @@ int main(void)
     glEnable(GL_MULTISAMPLE);
      
 
-    // ======= open file ===========    
-    std::ofstream meltFile(FILE_NAME);
+    // ======= open file ===========  
+    
+    std::filesystem::create_directories("output");  // creates folder if it doesnt exist
+    
+    std::ofstream meltFile(std::string("output/") + FILE_NAME); // creates or opens file
 
     if (!meltFile)
     {
@@ -401,6 +405,8 @@ int main(void)
                     << partSystem.temperature << " "
                     << partSystem.pressure << " "
                     << deltaTime << "\n";
+
+                meltFile.flush();   // force write to disk
             }
             step++;
             simTime += dt;

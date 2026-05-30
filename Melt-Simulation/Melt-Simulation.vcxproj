@@ -613,7 +613,7 @@
     <ClCompile Include="meltSimulation.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="dummy.txt" />
+    <Text Include="output\dummy.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -17,9 +17,9 @@ x86/
 # User-specific files
 *.user
 
-# output files
-*.txt
-
 # CMake
 CMakeFiles/
 CMakeCache.txt
+
+# output files
+output/

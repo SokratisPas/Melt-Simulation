@@ -19,6 +19,7 @@
 
 #include "headerFiles/Shader.h"
 #include "headerFiles/particle-system.h"
+#include "headerFiles/orbit-Camera.h"
 
 // ==========================================================================================================
 // ==========================================================================================================
@@ -73,17 +74,9 @@ const unsigned int SCR_WIDTH = 1000;
 const unsigned int SCR_HEIGHT = 750;
 
 // ==== orbit camera =====
+OrbitCamera cam;
+
 bool rightMousePressed = false;
-float yaw = -90.0f;
-float pitch = 0.0f;
-
-float fov = 45.0f; // field of view 
-
-double lastMouseX = 0.0f;
-double lastMouseY = 0.0f;
-
-float distanceToTarget = 25.0f;
-glm::vec3 target(0.5f, 0.5f, 0.5f); // box center
 
 // time
 float deltaTime = 0.0f;	// Time between current frame and last frame
@@ -141,7 +134,6 @@ int main(void)
     // ===== Mouse =======
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-
 
     glfwSetMouseButtonCallback(window, mouse_button_callback);
     glfwSetCursorPosCallback(window, mouse_callback);
@@ -309,7 +301,7 @@ int main(void)
     partSystem.initiallizeAcc();
 
     // change target for orbital camera
-    target = glm::vec3(partSystem.xMax / 2);
+    cam.target = glm::vec3(partSystem.xMax / 2);
     
     // enable depth test
     glEnable(GL_DEPTH_TEST); 
@@ -352,17 +344,11 @@ int main(void)
 
         particleShader.use();
         // projection for particleShader  
-        glm::mat4 projection = glm::perspective( glm::radians(fov), (float)fullWidth / (float)fullHeight, 0.1f, 100.0f);
+        glm::mat4 projection = cam.calcProjection(fullWidth, fullHeight);
         
-        // view for particleShader
-        glm::vec3 direction;
-        direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-        direction.y = sin(glm::radians(pitch));
-        direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+        // view for particleShader    
+        glm::mat4 view = cam.calcView();
 
-        glm::vec3 cameraPos = target - direction * distanceToTarget;
-
-        glm::mat4 view = glm::lookAt(cameraPos, target, glm::vec3(0.0f, 1.0f, 0.0f));
         particleShader.setMat4("projection", projection);
         particleShader.setMat4("view", view);
 
@@ -579,6 +565,8 @@ int main(void)
 
 // =====================================
 // ========= FUNCTIONS =================
+// 
+// -----------------------------------------
 // take input from keyboard
 void processInput(GLFWwindow* window)
 {
@@ -586,44 +574,45 @@ void processInput(GLFWwindow* window)
         glfwSetWindowShouldClose(window, true);
 }
 
+// -----------------------------------------
 // whenever the window size changed this callback function executes
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
     glViewport(0, 0, width, height);
 }
 
+// -----------------------------------------
 // function for zoom scroll
+// here the xoffset is not needed, but the "glfwSetScrollCallback" function needs it 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
-    float zoomSensitivity = 3.0f;
-
-    fov -= (float)yoffset * zoomSensitivity;
-    if (fov < 20.0f) fov = 20.0f;
-    if (fov > 90.0f) fov = 90.0f;
+    cam.zoomScroll(yoffset);
 }
 
+// -----------------------------------------
 // check when right mouse is pressed
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
     if (button == GLFW_MOUSE_BUTTON_RIGHT)
     {
-        if (action == GLFW_PRESS)
+        if (action == GLFW_PRESS)           // right mouse pressed
         {
             rightMousePressed = true;
 
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // hide cursor
 
-            glfwGetCursorPos(window, &lastMouseX, &lastMouseY);
+            glfwGetCursorPos(window, &cam.lastMouseX, &cam.lastMouseY); // update last mouse pos
         }
-        else if (action == GLFW_RELEASE)
+        else if (action == GLFW_RELEASE)    // right mouse released
         {
             rightMousePressed = false;
 
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL); // show again cursor
         }
     }
 }
 
+// -----------------------------------------
 // move camera when right mouse pressed
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
 {
@@ -635,23 +624,11 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
     if (!rightMousePressed)
         return;
     
-    float xpos = (float)xposIn;
-    float ypos = (float)yposIn;
-
-    float xoffset = xpos - lastMouseX;
-    float yoffset = lastMouseY - ypos;
-
-    lastMouseX = xpos;
-    lastMouseY = ypos;
-
-    float sensitivity = 0.2f;
-    yaw += xoffset * sensitivity;
-    pitch += yoffset * sensitivity;
-
-    if (pitch > 89.0f) pitch = 89.0f;
-    if (pitch < -89.0f) pitch = -89.0f;
+    // move camera
+    cam.moveCamera(xposIn, yposIn);
 }
 
+// -----------------------------------------
 // make sphere particle
 void generateSphere(float radius, unsigned int sectors, unsigned int stacks, std::vector<particleVertex>& vertices,
                     std::vector<unsigned int>& indices)

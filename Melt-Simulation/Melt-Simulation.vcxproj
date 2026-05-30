@@ -591,6 +591,7 @@
     <ClInclude Include="glm\vector_relational.hpp" />
     <ClInclude Include="headerFiles\camera.h" />
     <ClInclude Include="headerFiles\glew_setup.h" />
+    <ClInclude Include="headerFiles\orbit-Camera.h" />
     <ClInclude Include="headerFiles\particle-system.h" />
     <ClInclude Include="headerFiles\Shader.h" />
     <ClInclude Include="imgui\imconfig.h" />

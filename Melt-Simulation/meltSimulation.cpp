@@ -18,6 +18,8 @@
 #include "imgui/imgui_impl_glfw_gl3.h"
 
 #include "headerFiles/Shader.h"
+#include "headerFiles/particle-system.h"
+#include "headerFiles/orbit-Camera.h"
 
 // ==========================================================================================================
 // ==========================================================================================================
@@ -55,26 +57,10 @@ struct particleVertex {
     float nx, ny, nz;   // normals
 };
 
-// ===== particles properties =====
-float particleRadius = 0.3f; // scale particles
-float mass = 1.0f; // lj units
+// =========== Particle System ========
+ParticleSystem partSystem(N);
 
-struct Particle {
-    glm::vec3 position = glm::vec3(0.0f);
-    glm::vec3 velocity = glm::vec3(0.0f);
-    glm::vec3 acceleration = glm::vec3(0.0f);
-
-    glm::vec3 force = glm::vec3(0.0f);
-
-    glm::vec3 accelerationPrev = glm::vec3(0.0f);
-};
-std::vector<Particle> particles(N); 
-
-
-// ==== Cube dimensions =====
-float xMin = 0.0f, xMax = 1.0f;
-float yMin = 0.0f, yMax = 1.0f;
-float zMin = 0.0f, zMax = 1.0f;
+float particleRadius = 0.3f;    // scale particles (for visuals)
 
 // ==== Instance data struct =====
 struct InstanceData {
@@ -83,30 +69,14 @@ struct InstanceData {
 };
 std::vector<InstanceData> instances(N);
 
-// === neighbor list ====
-// each particle[i] has a vector that includes all the neighbor particles
-std::vector<std::vector<int>> neighborList(N);
-
-// last pos of particle[i] 
-std::vector<glm::vec3> lastBuildPos(N);
-
-
 // Starting screen settings
 const unsigned int SCR_WIDTH = 1000;
 const unsigned int SCR_HEIGHT = 750;
 
 // ==== orbit camera =====
+OrbitCamera cam;
+
 bool rightMousePressed = false;
-float yaw = -90.0f;
-float pitch = 0.0f;
-
-float fov = 45.0f; // field of view 
-
-double lastMouseX = 0.0f;
-double lastMouseY = 0.0f;
-
-float distanceToTarget = 25.0f;
-glm::vec3 target(0.5f, 0.5f, 0.5f); // box center
 
 // time
 float deltaTime = 0.0f;	// Time between current frame and last frame
@@ -123,20 +93,8 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
-void generateSphere(float radius, unsigned int sectors, unsigned int stacks, 
-                    std::vector<particleVertex>& vertices, std::vector<unsigned int>& indices);
-float randomFloat(float start, float finish);
-std::vector<std::array<double, 3>> generateFCC(int n, double a);
-glm::vec3 computeLJForce(const glm::vec3& pi, const glm::vec3& pj, float epsilon, float sigma, float& Epot);
-void buildNeighborList(float rlist);
-void computeForces_Epot_Virial(float epsilon, float sigma, float& Epot, float& Virial);
-void applyPBC(glm::vec3& pos);
-bool needRebuild(float skin);
-float computeTemperature(const float Ekin, const float dof);
-void useThermostat(const float dt, const float tau, const float Ttarget,
-                   const float dof, const float Ekin, const float T);
-float computePressure(float density, float temp, float virial, float vol);
-
+void generateSphere(float radius, unsigned int sectors, unsigned int stacks, std::vector<particleVertex>& vertices,
+    std::vector<unsigned int>& indices);
 
 int main(void)
 {
@@ -176,7 +134,6 @@ int main(void)
     // ===== Mouse =======
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-
 
     glfwSetMouseButtonCallback(window, mouse_button_callback);
     glfwSetCursorPosCallback(window, mouse_callback);
@@ -295,66 +252,35 @@ int main(void)
 
     // ======================================
     // =========== PHYSICS DATA =============
-    double e = 1.0;     // epsilon (lj units)
-    double sigma = 1.0; // sigma (lj units)
+    double e = 1.0;             // epsilon (lj units)
+    double sigma = 1.0;         // sigma (lj units)
 
     double r0 = pow(2.0, 1.0 / 6.0) * sigma;
-    double a = sqrt(2.0) * r0;   // lattice constant ( = sqrt(2) * 1.122)
+    double a = sqrt(2.0) * r0;  // lattice constant ( = sqrt(2) * 1.122)
 
-    double dt = 0.0005; 
-    float Ekin = 0.0f; // Kinetik energy
-    float Epot = 0.0f; // potential energy
-    float temperature = 0.0f; // temp
-    float pressure = 0.0f;
-    float virial = 0.0f; 
+    double dt = 0.0005;         // delta time
 
-    float dof = 3.0f * particles.size() - 3.0f; // degrees of freedom (we remove 3 bcz we remove net momentum)
-
-    // thermostat vars
-    float Ttarget = 1.0f;   // target temperature (lj)
-    float tau = 0.1f;       // relaxation strength 
+    float Ttarget = 1.0f;       // target temperature (lj)
+    float tau = 0.1f;           // relaxation strength 
 
 
     // ==== initialize parameteres ====
-    std::vector<std::array<double, 3>> initialPos = generateFCC(N, a); // initial pos vector
-
-    for (int i = 0; i < N; i++)
-    {
-        // initial pos
-        particles[i].position = glm::vec3(initialPos[i][0], initialPos[i][1], initialPos[i][2]);
-
-        // initial small random vel
-        particles[i].velocity = glm::vec3(randomFloat(-0.1f, 0.1f), randomFloat(-0.1f, 0.1f),
-                                          randomFloat(-0.1f, 0.1f));
-
-        // initial lastBuildPos
-        lastBuildPos[i] = particles[i].position;
-    }
-
+    partSystem.initializeParameteres(a);
+    
     // remove net momentum
     // it should : sum(vel[i] == 0)
-    glm::vec3 velMean(0.0f);
-    for (auto& p : particles)
-        velMean += p.velocity;
-
-    velMean /= (float)particles.size();
-
-    for (auto& p : particles)
-        p.velocity -= velMean;
-
+    partSystem.removeNetMomentum();
 
     // ==== rescale cube =======
     // (rescale cube BEFORE initialize neighborList and computeForces)
     int cells_per_dim = std::ceil(std::cbrt(N / 4.0));
     float L = cells_per_dim * a; // cubes length
-
-    xMin = yMin = zMin = 0.0f;
-    xMax = yMax = zMax = L; 
+    
+    partSystem.xMin = partSystem.yMin = partSystem.zMin = 0.0f;
+    partSystem.xMax = partSystem.yMax = partSystem.zMax = L;
 
     // volume, density calculation 
-    float volume = (xMax - xMin) * (yMax - yMin) * (zMax - zMin);
-    float density = N / volume;
-
+    partSystem.calcVolumeDensity();
 
     // ==== neighbor list =====
     float rc = 2.5f * sigma;    // r cutoff = 2.5 * 1.0 = 2.5
@@ -362,23 +288,20 @@ int main(void)
     float rlist = rc + rSkin;   // neighbor list radius
 
     // apply pbc
-    for (auto& p : particles)
-        applyPBC(p.position);
-
-    // initalize neighbour list and forces
-    buildNeighborList(rlist);
-    computeForces_Epot_Virial(e, sigma, Epot, virial);
-
-    // initiallize acceleration
-    for (auto& p : particles)
+    for (auto& p : partSystem.particles)
     {
-        p.acceleration = p.force; // m = 1
-        p.accelerationPrev = p.force;
+        partSystem.applyPBC(p.position);
     }
 
+    // initalize neighbour list and forces
+    partSystem.buildNeighborList(rlist);
+    partSystem.computeForces_Epot_Virial(e, sigma);
+
+    // initiallize acceleration
+    partSystem.initiallizeAcc();
 
     // change target for orbital camera
-    target = glm::vec3(xMax / 2);
+    cam.target = glm::vec3(partSystem.xMax / 2);
     
     // enable depth test
     glEnable(GL_DEPTH_TEST); 
@@ -421,17 +344,11 @@ int main(void)
 
         particleShader.use();
         // projection for particleShader  
-        glm::mat4 projection = glm::perspective( glm::radians(fov), (float)fullWidth / (float)fullHeight, 0.1f, 100.0f);
+        glm::mat4 projection = cam.calcProjection(fullWidth, fullHeight);
         
-        // view for particleShader
-        glm::vec3 direction;
-        direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-        direction.y = sin(glm::radians(pitch));
-        direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+        // view for particleShader    
+        glm::mat4 view = cam.calcView();
 
-        glm::vec3 cameraPos = target - direction * distanceToTarget;
-
-        glm::mat4 view = glm::lookAt(cameraPos, target, glm::vec3(0.0f, 1.0f, 0.0f));
         particleShader.setMat4("projection", projection);
         particleShader.setMat4("view", view);
 
@@ -439,69 +356,50 @@ int main(void)
         // ======== PHYSICS PARAMETERS UPDATE =========  
         if (startSimulation)
         {
-            // reset energy
-            Ekin = 0.0f, Epot = 0.0f, virial = 0.0f;
+            partSystem.resetEkinEpotVirial();
 
-            // pos update
-            for (auto& part : particles)
-            {
-                part.position += part.velocity * (float)dt + 
-                                0.5f * part.accelerationPrev * (float)(dt * dt);
-
-                // periodic boundary conditions
-                applyPBC(part.position);
-                
-                // save prev acceleration
-                part.accelerationPrev = part.acceleration;
-            }
+            // update pos wth velocity Verlet method
+            partSystem.updatePos(dt);
 
             // check if rebuild neighboorList
-            if (needRebuild(rSkin))
+            if (partSystem.needRebuild(rSkin))
             {
-                buildNeighborList(rlist);
+                partSystem.buildNeighborList(rlist);
             }
 
             // update forces and E potential and Virial
-            computeForces_Epot_Virial(e, sigma, Epot, virial);
+            partSystem.computeForces_Epot_Virial(e, sigma);
 
             // acceleration update
-            for (auto& part : particles)
-            {
-                part.acceleration = part.force; // m = 1
-            }
+            partSystem.updateAcc();
 
             // vel and Ekin update
-            for (auto& part : particles)
-            {
-                part.velocity += 0.5f * (part.accelerationPrev + part.acceleration) * (float)dt;
-
-                Ekin += 0.5f * glm::dot(part.velocity, part.velocity);
-            }
+            partSystem.updateVelEkin(dt);
 
             // Temperature
-            temperature = computeTemperature(Ekin, dof);
+            partSystem.computeTemperature();
 
             // Pressure
-            pressure = computePressure(density, temperature, virial, volume);
+            partSystem.computePressure();
 
             // thermostat
             if (USE_THERMOSTAT)
             {
-                useThermostat(dt, tau, Ttarget, dof, Ekin, temperature);
+                partSystem.useThermostat(dt, tau, Ttarget);
             }
 
             // ======= WRITE FILE ========            
             if (step % 10 == 0)
             {
-                float Etot = Ekin + Epot;
+                float Etot = partSystem.Ekin + partSystem.Epot;
 
                 meltFile << step << " "
                     << simTime << " "
-                    << Ekin << " "
-                    << Epot << " "
+                    << partSystem.Ekin << " "
+                    << partSystem.Epot << " "
                     << Etot << " "
-                    << temperature << " "
-                    << pressure << " "
+                    << partSystem.temperature << " "
+                    << partSystem.pressure << " "
                     << deltaTime << "\n";
             }
             step++;
@@ -514,7 +412,7 @@ int main(void)
 
         // update instance pos and color
         instances.clear();
-        for (auto& part : particles)
+        for (auto& part : partSystem.particles)
         {
             InstanceData data;
             // position
@@ -524,7 +422,7 @@ int main(void)
             float u2 = glm::dot(part.velocity, part.velocity);
 
             // average v^2 from temperature
-            float u2Mean = 3.0f * temperature;
+            float u2Mean = 3.0f * partSystem.temperature;
 
             // choose upper visualization limit
             float u2Max = 4.0f * u2Mean;
@@ -537,9 +435,9 @@ int main(void)
             float t = glm::clamp(u2 / u2Max, 0.0f, 1.0f);
 
             // colors
-            glm::vec3 cold(0.2f, 0.4f, 1.0f); // blue
-            glm::vec3 mid(0.2f, 1.0f, 0.2f); // green
-            glm::vec3 hot(1.0f, 0.2f, 0.1f); // red
+            glm::vec3 cold(0.2f, 0.4f, 1.0f);   // blue
+            glm::vec3 mid(0.2f, 1.0f, 0.2f);    // green
+            glm::vec3 hot(1.0f, 0.2f, 0.1f);    // red
 
             glm::vec3 color;
 
@@ -579,7 +477,7 @@ int main(void)
             cubeShader.use(); // change to cubeShader 
             glm::mat4 cubeModel = glm::mat4(1.0f);
             cubeModel = glm::translate(cubeModel, glm::vec3(0.0f, 0.0f, 0.0f));  // cube pos
-            cubeModel = glm::scale(cubeModel, glm::vec3(xMax, yMax, zMax));
+            cubeModel = glm::scale(cubeModel, glm::vec3(partSystem.xMax, partSystem.yMax, partSystem.zMax));
             cubeShader.setMat4("model", cubeModel);
             // send view, projection to cubeShader
             cubeShader.setMat4("projection", projection);
@@ -609,9 +507,9 @@ int main(void)
             // update imGui temp, pressure, energy
             if (windowStep % 20 == 0)
             {
-                windowTemp = temperature;
-                windowPressure = pressure;
-                windowEnergy = Ekin + Epot;
+                windowTemp = partSystem.temperature;
+                windowPressure = partSystem.pressure;
+                windowEnergy = partSystem.Ekin + partSystem.Epot;
             }
             windowStep++;
 
@@ -667,6 +565,8 @@ int main(void)
 
 // =====================================
 // ========= FUNCTIONS =================
+// 
+// -----------------------------------------
 // take input from keyboard
 void processInput(GLFWwindow* window)
 {
@@ -674,44 +574,45 @@ void processInput(GLFWwindow* window)
         glfwSetWindowShouldClose(window, true);
 }
 
+// -----------------------------------------
 // whenever the window size changed this callback function executes
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
     glViewport(0, 0, width, height);
 }
 
+// -----------------------------------------
 // function for zoom scroll
+// here the xoffset is not needed, but the "glfwSetScrollCallback" function needs it 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
-    float zoomSensitivity = 3.0f;
-
-    fov -= (float)yoffset * zoomSensitivity;
-    if (fov < 20.0f) fov = 20.0f;
-    if (fov > 90.0f) fov = 90.0f;
+    cam.zoomScroll(yoffset);
 }
 
+// -----------------------------------------
 // check when right mouse is pressed
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
     if (button == GLFW_MOUSE_BUTTON_RIGHT)
     {
-        if (action == GLFW_PRESS)
+        if (action == GLFW_PRESS)           // right mouse pressed
         {
             rightMousePressed = true;
 
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // hide cursor
 
-            glfwGetCursorPos(window, &lastMouseX, &lastMouseY);
+            glfwGetCursorPos(window, &cam.lastMouseX, &cam.lastMouseY); // update last mouse pos
         }
-        else if (action == GLFW_RELEASE)
+        else if (action == GLFW_RELEASE)    // right mouse released
         {
             rightMousePressed = false;
 
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL); // show again cursor
         }
     }
 }
 
+// -----------------------------------------
 // move camera when right mouse pressed
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
 {
@@ -723,23 +624,11 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
     if (!rightMousePressed)
         return;
     
-    float xpos = (float)xposIn;
-    float ypos = (float)yposIn;
-
-    float xoffset = xpos - lastMouseX;
-    float yoffset = lastMouseY - ypos;
-
-    lastMouseX = xpos;
-    lastMouseY = ypos;
-
-    float sensitivity = 0.2f;
-    yaw += xoffset * sensitivity;
-    pitch += yoffset * sensitivity;
-
-    if (pitch > 89.0f) pitch = 89.0f;
-    if (pitch < -89.0f) pitch = -89.0f;
+    // move camera
+    cam.moveCamera(xposIn, yposIn);
 }
 
+// -----------------------------------------
 // make sphere particle
 void generateSphere(float radius, unsigned int sectors, unsigned int stacks, std::vector<particleVertex>& vertices,
                     std::vector<unsigned int>& indices)
@@ -798,294 +687,4 @@ void generateSphere(float radius, unsigned int sectors, unsigned int stacks, std
             }
         }
     }
-}
-
-// calc random float in [start, finish]
-float randomFloat(float start, float finish)
-{
-    static std::mt19937 gen(std::random_device{}());
-    std::uniform_real_distribution<float> dist(start, finish);
-    return dist(gen);
-}
-
-
-// particles positions in FCC latice
-std::vector<std::array<double, 3>> generateFCC(int n, double a) 
-{
-    std::vector<std::array<double, 3>> positions;
-
-    // FCC has 4 atoms per unit cell
-    int cells_per_dim = std::ceil(std::cbrt(n / 4.0));
-
-    // Basis positions inside one FCC cell
-    std::vector<std::array<double, 3>> basis = {
-        {0.0, 0.0, 0.0},
-        {0.0, 0.5, 0.5},
-        {0.5, 0.0, 0.5},
-        {0.5, 0.5, 0.0}
-    };
-
-    for (int i = 0; i < cells_per_dim; i++) {
-        for (int j = 0; j < cells_per_dim; j++) {
-            for (int k = 0; k < cells_per_dim; k++) {
-
-                for (const auto& b : basis) {
-                    if (positions.size() >= n) return positions;
-
-                    positions.push_back({
-                        a * (i + b[0]),
-                        a * (j + b[1]),
-                        a * (k + b[2])
-                        });
-                }
-            }
-        }
-    }
-
-    return positions;
-}
-
-// particle-particle lj force
-glm::vec3 computeLJForce(const glm::vec3& pi, const glm::vec3& pj, float epsilon, float sigma, float& Epot) 
-{
-    glm::vec3 r = pi - pj; // distance vec of pair
-
-    // box dimensions
-    float Lx = xMax - xMin;
-    float Ly = yMax - yMin;
-    float Lz = zMax - zMin;
-
-    // minimum image convention
-    // IDEA:
-    // use the smallest distance between 2 particles 
-    // r / L callc how many boxes is the distance 
-    // and we remove this distance from r
-    r.x -= Lx * std::round(r.x / Lx);
-    r.y -= Ly * std::round(r.y / Ly);
-    r.z -= Lz * std::round(r.z / Lz);
-
-    float dist2 = glm::dot(r, r);
-
-    // avoid division by zero 
-    if (dist2 < 1e-12f)
-        return glm::vec3(0.0f);
-
-    // cut off radius
-    float rc = 2.5f * sigma;
-    if (dist2 > (rc * rc)) 
-        return glm::vec3(0.0f);
-    
-    // distance magnitude
-    float dist = std::sqrt(dist2);
-
-    // inverse distance
-    float inv_r = glm::inversesqrt(dist2);
-
-    float s_over_r = sigma * inv_r;
-    float s2 = s_over_r * s_over_r;
-    float s6 = s2 * s2 * s2;
-    float s12 = s6 * s6;
-
-    // E potential update
-    Epot += 4.0f * epsilon * (s12 - s6);
-
-    // LJ force magnitude
-    float f = 24.0f * epsilon * (2.0f * s12 - s6) * inv_r;
-
-    return r * (f * inv_r);
-}
-
-// make neighboor list
-void buildNeighborList(float rlist)
-{
-    float rlist2 = rlist * rlist;
-
-    // clear neighborList
-    for (auto& nl : neighborList)
-        nl.clear();
-
-    // build cells (using rlist as cell size)
-    float cellSize = rlist;
-
-    // number of cels
-    int nx = (int)((xMax - xMin) / cellSize);
-    int ny = nx;
-    int nz = nx;
-
-    // debug line for n <= 0
-    if (nx <= 0 || ny <= 0 || nz <= 0)
-    {
-        std::cout << "Invalid cell grid!\n";
-        return;
-    }
-
-    std::vector<std::vector<int>> cells(nx * ny * nz);
-
-    // make 1D coords to 3D coords
-    auto getCellIndex = [&](int ix, int iy, int iz)
-        {
-            return ix + nx * (iy + ny * iz);
-        };
-
-    // assign particles to cells
-    for (int i = 0; i < N; i++)
-    {
-        glm::vec3 p = particles[i].position;
-
-        // cells indices
-        int ix = (int)((p.x - xMin) / cellSize) % nx;
-        int iy = (int)((p.y - yMin) / cellSize) % ny;
-        int iz = (int)((p.z - zMin) / cellSize) % nz;
-
-        // catch negative indices
-        if (ix < 0) ix += nx;
-        if (iy < 0) iy += ny;
-        if (iz < 0) iz += nz;
-
-        cells[getCellIndex(ix, iy, iz)].push_back(i);
-    }
-
-    // build neighbor list
-    for (int ix = 0; ix < nx; ix++)
-        for (int iy = 0; iy < ny; iy++)
-            for (int iz = 0; iz < nz; iz++)
-            {
-                int cellA = getCellIndex(ix, iy, iz);
-
-                // check only neighbors of cellA
-                for (int dx = -1; dx <= 1; dx++)
-                    for (int dy = -1; dy <= 1; dy++)
-                        for (int dz = -1; dz <= 1; dz++)
-                        {
-                            int jx = (ix + dx + nx) % nx;
-                            int jy = (iy + dy + ny) % ny;
-                            int jz = (iz + dz + nz) % nz;
-
-                            int cellB = getCellIndex(jx, jy, jz);
-
-                            for (int i : cells[cellA])
-                            {
-                                for (int j : cells[cellB])
-                                {
-                                    // avoid double counting
-                                    if (i >= j) continue;
-
-                                    glm::vec3 r = particles[i].position - particles[j].position;
-
-                                    // minimum image
-                                    float Lx = xMax - xMin;
-                                    float Ly = yMax - yMin;
-                                    float Lz = zMax - zMin;
-
-                                    r.x -= Lx * std::round(r.x / Lx);
-                                    r.y -= Ly * std::round(r.y / Ly);
-                                    r.z -= Lz * std::round(r.z / Lz);
-
-                                    float dist2 = glm::dot(r, r);
-
-                                    if (dist2 < rlist2)
-                                    {
-                                        neighborList[i].push_back(j);
-                                        neighborList[j].push_back(i);
-                                    }
-                                }
-                            }
-                        }
-            }
-
-    // store positions
-    for (int i = 0; i < N; i++)
-        lastBuildPos[i] = particles[i].position;
-}
-
-// calc all lj forces and Epot and Virial 
-void computeForces_Epot_Virial(float epsilon, float sigma, float& Epot, float& Virial)
-{
-    // set forces = 0
-    for (auto& p : particles)
-        p.force = glm::vec3(0.0f);
-
-    // calc new lj forces
-    for (int i = 0; i < N; i++)
-    {
-        for (int j : neighborList[i])
-        {
-            if (i >= j) continue;
-
-            glm::vec3 ijForce = computeLJForce(particles[i].position, particles[j].position, epsilon, sigma, Epot);
-
-            particles[i].force += ijForce;
-            particles[j].force -= ijForce;
-
-
-            glm::vec3 rij = particles[i].position - particles[j].position;
-            Virial += glm::dot(rij, ijForce);
-        }
-    }
-}
-
-// periodic boundary conditions
-void applyPBC(glm::vec3& pos)
-{
-    // cube lengths
-    float Lx = xMax - xMin;
-    float Ly = yMax - yMin;
-    float Lz = zMax - zMin;
-
-    // keep x, y, x in cube boundaries 
-    pos.x = xMin + fmod(fmod(pos.x - xMin, Lx) + Lx, Lx);
-    pos.y = yMin + fmod(fmod(pos.y - yMin, Ly) + Ly, Ly);
-    pos.z = zMin + fmod(fmod(pos.z - zMin, Lz) + Lz, Lz);
-}
-
-// check if neighboor list needs rebuild
-// IDEA: If any particle has moved (distance > rs / 2), we rebuild the neighborList
-bool needRebuild(float skin)
-{
-    // max displacement^2 of any particle
-    float maxDisp2 = 0.0f;
-
-    for (int i = 0; i < N; i++)
-    {
-        glm::vec3 dr = particles[i].position - lastBuildPos[i];
-
-        // minimum image
-        float Lx = xMax - xMin;
-        float Ly = yMax - yMin;
-        float Lz = zMax - zMin;
-
-        dr.x -= Lx * std::round(dr.x / Lx);
-        dr.y -= Ly * std::round(dr.y / Ly);
-        dr.z -= Lz * std::round(dr.z / Lz);
-
-        maxDisp2 = std::max(maxDisp2, glm::dot(dr, dr));
-    }
-
-    return maxDisp2 > (skin * 0.5f) * (skin * 0.5f);
-}
-
-// calc T (kb = 1, lj units)
-float computeTemperature(const float Ekin, const float dof)
-{   
-    return (2.0f * Ekin) / dof;
-}
-
-// thermostat (Berendsen)
-void useThermostat(const float dt, const float tau, const float Ttarget, 
-                   const float dof, const float Ekin, const float T)
-{
-    if (T < 1e-8f) return; // avoid division by zero
-
-    // scaling factor
-    float lambda = sqrt(1.0f + (dt / tau) * (Ttarget / T - 1.0f));
-
-    // change velocity of particles
-    for (auto& p : particles)
-        p.velocity *= lambda;
-}
-
-// calc pressure (= density * temp + sum(Rij*Fij) / (3V) )
-float computePressure(float density, float temp, float virial, float vol)
-{
-    return density * temp + virial / (3.0f * vol);
 }

@@ -1341,6 +1341,9 @@
     <ClInclude Include="imgui\stb_truetype.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="headerFiles\particle-system.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="glm\detail\glm.cpp">
@@ -1367,5 +1370,8 @@
     <ClCompile Include="meltSimulation.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="dummy.txt" />
   </ItemGroup>
 </Project>

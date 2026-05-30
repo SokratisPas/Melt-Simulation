@@ -591,6 +591,8 @@
     <ClInclude Include="glm\vector_relational.hpp" />
     <ClInclude Include="headerFiles\camera.h" />
     <ClInclude Include="headerFiles\glew_setup.h" />
+    <ClInclude Include="headerFiles\orbit-Camera.h" />
+    <ClInclude Include="headerFiles\particle-system.h" />
     <ClInclude Include="headerFiles\Shader.h" />
     <ClInclude Include="imgui\imconfig.h" />
     <ClInclude Include="imgui\imgui.h" />
@@ -609,6 +611,9 @@
     <ClCompile Include="imgui\imgui_draw.cpp" />
     <ClCompile Include="imgui\imgui_impl_glfw_gl3.cpp" />
     <ClCompile Include="meltSimulation.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="dummy.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

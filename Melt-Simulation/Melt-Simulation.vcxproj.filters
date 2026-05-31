@@ -439,6 +439,7 @@
     </None>
     <None Include="vertexShaders\meltSimulation.vert" />
     <None Include="vertexShaders\meltSimulation2.vert" />
+    <None Include="input\SrTiO3.poscar" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="glm\detail\_features.hpp">
@@ -1311,9 +1312,6 @@
     <ClInclude Include="glm\vector_relational.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="headerFiles\camera.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="headerFiles\glew_setup.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -1379,6 +1377,6 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="output\dummy.txt" />
-    <Text Include="poscar-input1.txt" />
+    <Text Include="input\poscar-input1.txt" />
   </ItemGroup>
 </Project>

@@ -24,6 +24,8 @@
 #include "headerFiles/POSCAR-parser.h"
 
 
+#define INPUT_FILE "SrTiO3.poscar"
+
 // ==== particle vertex struct =====
 struct particleVertex {
     float x, y, z;      // pos
@@ -31,9 +33,9 @@ struct particleVertex {
 };
 
 // =========== Particle System ========
-ParticleSystem partSystem(1);
+ParticleSystem partSystem(1);   // constract partSystem with 1 particle
 
-float particleRadius = 0.3f;    // scale particles (for visuals)
+float particleRadius = 0.5f;    // scale particles (for visuals)
 
 
 // Starting screen settings
@@ -54,6 +56,17 @@ int step = 0;
 float simTime = 0.0;
 int stepMax = 2000;
 
+// colors buffer 
+std::vector<glm::vec3> atomColors =
+{
+    {0.8f, 0.2f, 0.3f},
+    {0.2f, 0.7f, 0.1f},
+    {0.0f, 0.4f, 0.4f},
+    {0.8f, 0.8f, 0.2f},
+    {0.8f, 0.2f, 0.8f},
+    {0.2f, 0.8f, 0.8f}
+};
+
 // ===== functions =====
 void processInput(GLFWwindow* window);   
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -65,13 +78,13 @@ void generateSphere(float radius, unsigned int sectors, unsigned int stacks, std
 
 int main(void)
 {
-    // POSCAR FILE
+    // =========== POSCAR FILE ================
     POSCAR poscar;
-    if (!poscar.load("poscar-input1.txt"))
+    if (!poscar.load(std::string("input/") + INPUT_FILE))
         return 1;
 
     int N = poscar.atoms.size();
-    std::cout << N;
+    std::cout << "Number of particles: " << N << "\n";
 
     for (size_t i = 0; i < poscar.atoms.size(); ++i)
     {
@@ -149,8 +162,8 @@ int main(void)
     // =========== Particle =============
     std::vector<particleVertex> partVerts;
     std::vector<unsigned int> partIndices;
-    unsigned int partSectors = 22;
-    unsigned int partStacks = 16;
+    unsigned int partSectors = 28;
+    unsigned int partStacks = 18;
     generateSphere(particleRadius, partSectors, partStacks, partVerts, partIndices);
 
     unsigned int partVBO, partVAO, partEBO;
@@ -281,12 +294,7 @@ int main(void)
             particleShader.setMat4("model", particleModel);
 
             // color
-            glm::vec3 color(1.0f);
-            if (atom.element == "Ti")
-                color = glm::vec3(1.0f, 0.0f, 0.0f);
-            else if (atom.element == "Sr")
-                color = glm::vec3(0.0f, 1.0f, 0.0f);
-
+            glm::vec3 color = atomColors[atom.typeIndex % atomColors.size()];
             particleShader.setVec3("color", color);
 
             // draw particles
@@ -303,7 +311,6 @@ int main(void)
             axisShader.setMat4("view", view);
 
             glm::mat4 axisModel = glm::mat4(1.0f);
-            axisModel = glm::translate(axisModel, center);
             axisModel = glm::scale(axisModel, glm::vec3(10.0f));
             axisShader.setMat4("model", axisModel);
 
@@ -318,16 +325,37 @@ int main(void)
         {
             ImGui::Begin("Settings", &showWindow);
 
-            // show Axis
-            ImGui::Checkbox("Show Axis", &showAxis);
+            // color of different atoms
+            ImGui::Separator();
+            ImGui::Text("Atom types");
+
+            for (size_t i = 0; i < poscar.elementTypes.size(); i++)
+            {
+                glm::vec3 c = atomColors[i % atomColors.size()];
+
+                ImGui::ColorButton(
+                    ("##color" + std::to_string(i)).c_str(),
+                    ImVec4(c.r, c.g, c.b, 1.0f));
+
+                ImGui::SameLine();
+
+                ImGui::Text("%s", poscar.elementTypes[i].c_str());
+            }
 
             // change partile scale 
-            ImGui::SliderFloat("Radius", &particleRadius, 0.1f, 3.0f);
+            ImGui::Separator();
+            ImGui::SliderFloat("Radius", &particleRadius, 0.4f, 4.0f);
+
+            // show Axis
+            ImGui::Separator();
+            ImGui::Checkbox("Show Axis", &showAxis);
 
             // fps 
+            ImGui::Separator();
             ImGui::Text("FPS : %.1f", ImGui::GetIO().Framerate);
 
             // close button
+            ImGui::Separator();
             if (ImGui::Button("Close"))
             {
                 showWindow = false;
@@ -349,6 +377,8 @@ int main(void)
     glDeleteVertexArrays(1, &partVAO);
     glDeleteBuffers(1, &partVBO);
     glDeleteBuffers(1, &partEBO);
+    glDeleteVertexArrays(1, &axisVAO);
+    glDeleteBuffers(1, &axisVBO);
 
     ImGui_ImplGlfwGL3_Shutdown();
     ImGui::DestroyContext();

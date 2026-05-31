@@ -13,7 +13,7 @@ public:
 
 	float fov = 45.0f; 
 
-	float distanceToTarget = 25.0f;
+	float distanceToTarget = 20.0f;
 	glm::vec3 target = glm::vec3(0.5f, 0.5f, 0.5f); // target where camera looks
 
 	float cameraSensitivity = 0.2f;

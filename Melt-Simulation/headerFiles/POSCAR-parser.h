@@ -12,16 +12,26 @@ struct Vec3
 
 struct Atom
 {
-    std::string element;
-    double x, y, z;
+    std::string element;    // name of atom type
+
+    int typeIndex;          // atom type index
+
+    double x, y, z;         // coords in world space
 };
 
 class POSCAR
 {
 public:
     Vec3 lattice[3];
+
     std::vector<Atom> atoms;
 
+    // different atom types
+    std::vector<std::string> elementTypes;
+
+
+    // ----------------------------------------------
+    // load poscar file function
     bool load(const std::string& filename)
     {
         std::ifstream file(filename);
@@ -62,10 +72,15 @@ public:
         std::stringstream elementStream(line);
         std::vector<std::string> elements;
 
+        elementTypes.clear(); // clear vector of diff elements
+
         std::string element;
 
         while (elementStream >> element)
+        {
             elements.push_back(element);
+            elementTypes.push_back(element);
+        }
 
         // Line 7: atom counts
         std::getline(file, line);
@@ -144,6 +159,7 @@ public:
             atoms.push_back(
                 {
                     elements[elementIndex],
+                    elementIndex,
                     x,
                     y,
                     z

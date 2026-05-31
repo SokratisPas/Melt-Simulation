@@ -295,6 +295,7 @@
     <None Include="glm\gtx\vector_angle.inl" />
     <None Include="glm\gtx\vector_query.inl" />
     <None Include="glm\gtx\wrap.inl" />
+    <None Include="input\SrTiO3.poscar" />
     <None Include="vertexShaders\meltSimulation.vert" />
     <None Include="vertexShaders\meltSimulation2.vert" />
   </ItemGroup>
@@ -589,7 +590,6 @@
     <ClInclude Include="glm\vec3.hpp" />
     <ClInclude Include="glm\vec4.hpp" />
     <ClInclude Include="glm\vector_relational.hpp" />
-    <ClInclude Include="headerFiles\camera.h" />
     <ClInclude Include="headerFiles\glew_setup.h" />
     <ClInclude Include="headerFiles\orbit-Camera.h" />
     <ClInclude Include="headerFiles\particle-system.h" />
@@ -615,7 +615,7 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="output\dummy.txt" />
-    <Text Include="poscar-input1.txt" />
+    <Text Include="input\poscar-input1.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

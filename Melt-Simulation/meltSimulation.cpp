@@ -21,36 +21,8 @@
 #include "headerFiles/Shader.h"
 #include "headerFiles/particle-system.h"
 #include "headerFiles/orbit-Camera.h"
+#include "headerFiles/POSCAR-parser.h"
 
-// ==========================================================================================================
-// ==========================================================================================================
-// ====================================== meltSimulation.cpp ================================================
-// 
-// Simulation of a solid with FCC lattice with Lennard-Jones potential. 
-// In order to have full cube with atoms in every position available use: 
-// Number of atoms = 4 * n^3 , where n = 1, 2, 3, ...
-// For example : N = 256, 500, 864, 1372, 2048, 2916, 4000.
-#define N 2916
-//
-// For the use of the thermostat set USE_THERMOSTAT == 1.
-#define USE_THERMOSTAT 1
-//
-// Keep in mind that the code creates a file to store the results.
-// For a test run write the results on a fie "dummy.txt" for example.
-// You can define how many steps to truck from the "stepMax" variable.
-// File name :
-#define FILE_NAME "dummy.txt"
-//
-// CONTROLS :
-// - Use RIGHT CLICK to move the camera. 
-// - Use SCROLL to zoom.
-// - Start to start the simulations (md calculations).
-// - Stop to stop the calculations (also writing on the file stops).
-// - Close to end the programm. 
-// - ESCAPE also closes the window and ends the programm.
-// - Show Cube checkbox to render a cube at the bondaries of the simulation. 
-// ==========================================================================================================
-// ==========================================================================================================
 
 // ==== particle vertex struct =====
 struct particleVertex {
@@ -59,16 +31,10 @@ struct particleVertex {
 };
 
 // =========== Particle System ========
-ParticleSystem partSystem(N);
+ParticleSystem partSystem(1);
 
 float particleRadius = 0.3f;    // scale particles (for visuals)
 
-// ==== Instance data struct =====
-struct InstanceData {
-    glm::vec3 instancePos;
-    glm::vec3 instanceColor;
-};
-std::vector<InstanceData> instances(N);
 
 // Starting screen settings
 const unsigned int SCR_WIDTH = 1000;
@@ -99,6 +65,24 @@ void generateSphere(float radius, unsigned int sectors, unsigned int stacks, std
 
 int main(void)
 {
+    // POSCAR FILE
+    POSCAR poscar;
+    if (!poscar.load("poscar-input1.txt"))
+        return 1;
+
+    int N = poscar.atoms.size();
+    std::cout << N;
+
+    for (size_t i = 0; i < poscar.atoms.size(); ++i)
+    {
+        std::cout
+            << i << " "
+            << poscar.atoms[i].element << " "
+            << poscar.atoms[i].x << " "
+            << poscar.atoms[i].y << " "
+            << poscar.atoms[i].z << '\n';
+    }
+
     // ==== GLFW window initialization ========
     GLFWwindow* window;
 
@@ -126,11 +110,7 @@ int main(void)
     ImGui::StyleColorsDark();
 
     bool showWindow = true;
-    bool startSimulation = false;
-    bool showCube = false;
-    bool showCloseWindow = false;
-    float windowTemp = 0.0f, windowEnergy = 0.0f, windowPressure;
-    int windowStep = 0;
+    bool showAxis = false;
 
     // ===== Mouse =======
     glfwMakeContextCurrent(window);
@@ -160,7 +140,7 @@ int main(void)
     Shader particleShader("..\\Melt-Simulation\\vertexShaders\\meltSimulation.vert",
                           "..\\Melt-Simulation\\fragmentShaders\\meltSimulation.frag");
 
-    Shader cubeShader("..\\Melt-Simulation\\vertexShaders\\meltSimulation2.vert",
+    Shader axisShader("..\\Melt-Simulation\\vertexShaders\\meltSimulation2.vert",
                       "..\\Melt-Simulation\\fragmentShaders\\meltSimulation2.frag");
 
     // =================================
@@ -169,8 +149,8 @@ int main(void)
     // =========== Particle =============
     std::vector<particleVertex> partVerts;
     std::vector<unsigned int> partIndices;
-    unsigned int partSectors = 18;
-    unsigned int partStacks = 12;
+    unsigned int partSectors = 22;
+    unsigned int partStacks = 16;
     generateSphere(particleRadius, partSectors, partStacks, partVerts, partIndices);
 
     unsigned int partVBO, partVAO, partEBO;
@@ -196,114 +176,64 @@ int main(void)
     glBindVertexArray(0);
 
 
-    // =========== cube ============
-    float cubeVertices[] = {
+    // =========== Axis ============
+    float axisVertices[] =
+    {
+        // X axis
         0.0f, 0.0f, 0.0f,
-        1.0f, 0.0f, 0.0f,
-        1.0f, 1.0f, 0.0f,
-        0.0f, 1.0f, 0.0f,
-        0.0f, 0.0f, 1.0f,
-        1.0f, 0.0f, 1.0f,
-        1.0f, 1.0f, 1.0f,
-        0.0f, 1.0f, 1.0f
-    };
-    unsigned int cubeIndices[] = {
-        0,1, 1,2, 2,3, 3,0,   // back square
-        4,5, 5,6, 6,7, 7,4,   // front square
-        0,4, 1,5, 2,6, 3,7    // connecting edges
+        5.0f, 0.0f, 0.0f,
+
+        // Y axis
+        0.0f, 0.0f, 0.0f,
+        0.0f, 5.0f, 0.0f,
+
+        // Z axis
+        0.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 5.0f
     };
 
-    unsigned int cubeVAO, cubeVBO, cubeEBO;
-    glGenVertexArrays(1, &cubeVAO);
-    glGenBuffers(1, &cubeVBO);
-    glGenBuffers(1, &cubeEBO);
+    unsigned int axisVAO, axisVBO;
 
-    glBindVertexArray(cubeVAO);
+    glGenVertexArrays(1, &axisVAO);
+    glGenBuffers(1, &axisVBO);
 
-    glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, GL_STATIC_DRAW);
+    glBindVertexArray(axisVAO);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cubeEBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cubeIndices), cubeIndices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, axisVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(axisVertices), axisVertices, GL_STATIC_DRAW);
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
     glBindVertexArray(0);
 
-    // ========= Instance Buffer ==========
-    unsigned int instanceVBO;
-    glGenBuffers(1, &instanceVBO);
-
-    glBindVertexArray(partVAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
-    glBufferData(GL_ARRAY_BUFFER, instances.size() * sizeof(InstanceData), nullptr, GL_DYNAMIC_DRAW);
-
-    // instancePos
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(InstanceData), (void*)0);
-    glVertexAttribDivisor(2, 1);
-
-    // instanceColor
-    glEnableVertexAttribArray(3);
-    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(InstanceData), (void*)offsetof(InstanceData, instanceColor));
-    glVertexAttribDivisor(3, 1);
-    glBindVertexArray(0);
-
 
     // ======================================
     // =========== PHYSICS DATA =============
-    double e = 1.0;             // epsilon (lj units)
-    double sigma = 1.0;         // sigma (lj units)
-
-    double r0 = pow(2.0, 1.0 / 6.0) * sigma;
-    double a = sqrt(2.0) * r0;  // lattice constant ( = sqrt(2) * 1.122)
-
-    double dt = 0.0005;         // delta time
-
-    float Ttarget = 1.0f;       // target temperature (lj)
-    float tau = 0.1f;           // relaxation strength 
-
 
     // ==== initialize parameteres ====
-    partSystem.initializeParameteres(a);
-    
-    // remove net momentum
-    // it should : sum(vel[i] == 0)
-    partSystem.removeNetMomentum();
+    partSystem.particles.resize(N);
 
-    // ==== rescale cube =======
-    // (rescale cube BEFORE initialize neighborList and computeForces)
-    int cells_per_dim = std::ceil(std::cbrt(N / 4.0));
-    float L = cells_per_dim * a; // cubes length
-    
-    partSystem.xMin = partSystem.yMin = partSystem.zMin = 0.0f;
-    partSystem.xMax = partSystem.yMax = partSystem.zMax = L;
 
-    // volume, density calculation 
-    partSystem.calcVolumeDensity();
-
-    // ==== neighbor list =====
-    float rc = 2.5f * sigma;    // r cutoff = 2.5 * 1.0 = 2.5
-    float rSkin = 0.3f;         // r skin
-    float rlist = rc + rSkin;   // neighbor list radius
-
-    // apply pbc
-    for (auto& p : partSystem.particles)
+    for (int i = 0; i < N; i++)
     {
-        partSystem.applyPBC(p.position);
+        // initial pos
+        partSystem.particles[i].position = glm::vec3(poscar.atoms[i].x, poscar.atoms[i].y, poscar.atoms[i].z);
     }
-
-    // initalize neighbour list and forces
-    partSystem.buildNeighborList(rlist);
-    partSystem.computeForces_Epot_Virial(e, sigma);
-
-    // initiallize acceleration
-    partSystem.initiallizeAcc();
+    
 
     // change target for orbital camera
-    cam.target = glm::vec3(partSystem.xMax / 2);
+    glm::vec3 center(0.0f);
+
+    for (const auto& atom : poscar.atoms)
+    {
+        center += glm::vec3(atom.x, atom.y, atom.z);
+    }
+
+    center /= static_cast<float>(poscar.atoms.size());
+
+    cam.target = center;
     
+
     // enable depth test
     glEnable(GL_DEPTH_TEST); 
 
@@ -312,22 +242,6 @@ int main(void)
 
     // anti aliasing
     glEnable(GL_MULTISAMPLE);
-     
-
-    // ======= open file ===========  
-    
-    std::filesystem::create_directories("output");  // creates folder if it doesnt exist
-    
-    std::ofstream meltFile(std::string("output/") + FILE_NAME); // creates or opens file
-
-    if (!meltFile)
-    {
-        std::cout << "Failed to open" << FILE_NAME << "file\n";
-        return -1;
-    }
-
-    meltFile << "step time Ekin Epot Etot Temperature Pressure frameDiff\n";
-
 
     // ==============================
     // ======== WHILE LOOP ==========
@@ -356,142 +270,45 @@ int main(void)
         particleShader.setMat4("projection", projection);
         particleShader.setMat4("view", view);
 
-
-        // ======== PHYSICS PARAMETERS UPDATE =========  
-        if (startSimulation)
+        for (const auto& atom : poscar.atoms)
         {
-            partSystem.resetEkinEpotVirial();
+            glm::mat4 model(1.0f);
 
-            // update pos wth velocity Verlet method
-            partSystem.updatePos(dt);
+            // particle model
+            glm::mat4 particleModel = glm::mat4(1.0f);
+            particleModel = glm::translate(particleModel, glm::vec3(atom.x, atom.y, atom.z));
+            particleModel = glm::scale(particleModel, glm::vec3(particleRadius));
+            particleShader.setMat4("model", particleModel);
 
-            // check if rebuild neighboorList
-            if (partSystem.needRebuild(rSkin))
-            {
-                partSystem.buildNeighborList(rlist);
-            }
+            // color
+            glm::vec3 color(1.0f);
+            if (atom.element == "Ti")
+                color = glm::vec3(1.0f, 0.0f, 0.0f);
+            else if (atom.element == "Sr")
+                color = glm::vec3(0.0f, 1.0f, 0.0f);
 
-            // update forces and E potential and Virial
-            partSystem.computeForces_Epot_Virial(e, sigma);
+            particleShader.setVec3("color", color);
 
-            // acceleration update
-            partSystem.updateAcc();
-
-            // vel and Ekin update
-            partSystem.updateVelEkin(dt);
-
-            // Temperature
-            partSystem.computeTemperature();
-
-            // Pressure
-            partSystem.computePressure();
-
-            // thermostat
-            if (USE_THERMOSTAT)
-            {
-                partSystem.useThermostat(dt, tau, Ttarget);
-            }
-
-            // ======= WRITE FILE ========            
-            if (step % 10 == 0)
-            {
-                float Etot = partSystem.Ekin + partSystem.Epot;
-
-                meltFile << step << " "
-                    << simTime << " "
-                    << partSystem.Ekin << " "
-                    << partSystem.Epot << " "
-                    << Etot << " "
-                    << partSystem.temperature << " "
-                    << partSystem.pressure << " "
-                    << deltaTime << "\n";
-
-                meltFile.flush();   // force write to disk
-            }
-            step++;
-            simTime += dt;
-
-            if (step == stepMax + 1)
-                showCloseWindow = true;
+            // draw particles
+            glBindVertexArray(partVAO);
+            glDrawElements(GL_TRIANGLES, partIndices.size(), GL_UNSIGNED_INT, 0);
+            glBindVertexArray(0);
         }
 
-
-        // update instance pos and color
-        instances.clear();
-        for (auto& part : partSystem.particles)
+        // ========== Axis ===========
+        if (showAxis)
         {
-            InstanceData data;
-            // position
-            data.instancePos = part.position;
+            axisShader.use();
+            axisShader.setMat4("projection", projection);
+            axisShader.setMat4("view", view);
 
-            // velocity^2
-            float u2 = glm::dot(part.velocity, part.velocity);
+            glm::mat4 axisModel = glm::mat4(1.0f);
+            axisModel = glm::translate(axisModel, center);
+            axisModel = glm::scale(axisModel, glm::vec3(10.0f));
+            axisShader.setMat4("model", axisModel);
 
-            // average v^2 from temperature
-            float u2Mean = 3.0f * partSystem.temperature;
-
-            // choose upper visualization limit
-            float u2Max = 4.0f * u2Mean;
-
-            // avoid divide by zero
-            if (u2Max < 1e-6f)
-                u2Max = 1.0f;
-
-            // normalize to [0,1]
-            float t = glm::clamp(u2 / u2Max, 0.0f, 1.0f);
-
-            // colors
-            glm::vec3 cold(0.2f, 0.4f, 1.0f);   // blue
-            glm::vec3 mid(0.2f, 1.0f, 0.2f);    // green
-            glm::vec3 hot(1.0f, 0.2f, 0.1f);    // red
-
-            glm::vec3 color;
-
-            if (t < 0.5f)
-            {
-                float localT = t / 0.5f;
-                color = glm::mix(cold, mid, localT);
-            }
-            else
-            {
-                float localT = (t - 0.5f) / 0.5f;
-                color = glm::mix(mid, hot, localT);
-            }
-                        
-            data.instanceColor = color;
-
-            instances.push_back(data);
-        }
-        // update instance buffer
-        glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, instances.size() * sizeof(InstanceData), instances.data());
-
-        // particle model
-        glm::mat4 particleModel = glm::mat4(1.0f);
-        particleShader.setMat4("model", particleModel);
-
-        // draw particles
-        glBindVertexArray(partVAO);
-        glDrawElementsInstanced(GL_TRIANGLES, partIndices.size(), GL_UNSIGNED_INT, 0, instances.size());
-        glBindVertexArray(0);
-
-
-        // ========== cube ===========
-        // reset model for cube 
-        if (showCube)
-        {
-            cubeShader.use(); // change to cubeShader 
-            glm::mat4 cubeModel = glm::mat4(1.0f);
-            cubeModel = glm::translate(cubeModel, glm::vec3(0.0f, 0.0f, 0.0f));  // cube pos
-            cubeModel = glm::scale(cubeModel, glm::vec3(partSystem.xMax, partSystem.yMax, partSystem.zMax));
-            cubeShader.setMat4("model", cubeModel);
-            // send view, projection to cubeShader
-            cubeShader.setMat4("projection", projection);
-            cubeShader.setMat4("view", view);
-
-            // draw cube 
-            glBindVertexArray(cubeVAO);
-            glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, 0);
+            glBindVertexArray(axisVAO);
+            glDrawArrays(GL_LINES, 0, 6);
             glBindVertexArray(0);
         }        
 
@@ -501,28 +318,11 @@ int main(void)
         {
             ImGui::Begin("Settings", &showWindow);
 
-            // start - stop simulation
-            if (ImGui::Button("Start"))
-                startSimulation = true;
-            if (ImGui::Button("Stop "))
-                startSimulation = false;
+            // show Axis
+            ImGui::Checkbox("Show Axis", &showAxis);
 
-            // render cube
-            ImGui::Checkbox("Show cube", &showCube);
-
-            // update imGui temp, pressure, energy
-            if (windowStep % 20 == 0)
-            {
-                windowTemp = partSystem.temperature;
-                windowPressure = partSystem.pressure;
-                windowEnergy = partSystem.Ekin + partSystem.Epot;
-            }
-            windowStep++;
-
-            // Energy, temp
-            ImGui::Text("Energy : %.1f (lj)", windowEnergy);
-            ImGui::Text("Temperature : %.3f (lj)", windowTemp);
-            ImGui::Text("Pressure : %.3f (lj)", windowPressure);
+            // change partile scale 
+            ImGui::SliderFloat("Radius", &particleRadius, 0.1f, 3.0f);
 
             // fps 
             ImGui::Text("FPS : %.1f", ImGui::GetIO().Framerate);
@@ -534,18 +334,6 @@ int main(void)
                 ImGui_ImplGlfwGL3_Shutdown();
                 ImGui::DestroyContext();
                 glfwTerminate();
-            }
-
-            // close window
-            if (showCloseWindow)
-            {
-                ImGui::Begin("Simulation ended", &showCloseWindow);
-                ImGui::Text("The max step has been reached!");
-                startSimulation = false;
-                
-                meltFile.close();   // close file
-
-                ImGui::End();
             }
             ImGui::End();
         }
@@ -561,7 +349,6 @@ int main(void)
     glDeleteVertexArrays(1, &partVAO);
     glDeleteBuffers(1, &partVBO);
     glDeleteBuffers(1, &partEBO);
-    glDeleteBuffers(1, &instanceVBO);
 
     ImGui_ImplGlfwGL3_Shutdown();
     ImGui::DestroyContext();

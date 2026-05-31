@@ -1347,6 +1347,9 @@
     <ClInclude Include="headerFiles\orbit-Camera.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="headerFiles\POSCAR-parser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="glm\detail\glm.cpp">
@@ -1376,5 +1379,6 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="output\dummy.txt" />
+    <Text Include="poscar-input1.txt" />
   </ItemGroup>
 </Project>

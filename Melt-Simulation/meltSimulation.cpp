@@ -502,12 +502,14 @@ int main(void)
             ImGui::Begin("Settings", &showWindow);
 
             // start - stop simulation
+            ImGui::Separator();
             if (ImGui::Button("Start"))
                 startSimulation = true;
             if (ImGui::Button("Stop "))
                 startSimulation = false;
 
             // render cube
+            ImGui::Separator();
             ImGui::Checkbox("Show cube", &showCube);
 
             // update imGui temp, pressure, energy
@@ -520,14 +522,17 @@ int main(void)
             windowStep++;
 
             // Energy, temp
+            ImGui::Separator();
             ImGui::Text("Energy : %.1f (lj)", windowEnergy);
             ImGui::Text("Temperature : %.3f (lj)", windowTemp);
             ImGui::Text("Pressure : %.3f (lj)", windowPressure);
 
             // fps 
+            ImGui::Separator();
             ImGui::Text("FPS : %.1f", ImGui::GetIO().Framerate);
 
             // close button
+            ImGui::Separator();
             if (ImGui::Button("Close"))
             {
                 showWindow = false;
@@ -562,6 +567,10 @@ int main(void)
     glDeleteBuffers(1, &partVBO);
     glDeleteBuffers(1, &partEBO);
     glDeleteBuffers(1, &instanceVBO);
+
+    glDeleteVertexArrays(1, &cubeVAO);
+    glDeleteBuffers(1, &cubeVBO);
+    glDeleteBuffers(1, &cubeEBO);
 
     ImGui_ImplGlfwGL3_Shutdown();
     ImGui::DestroyContext();

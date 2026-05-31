@@ -589,7 +589,6 @@
     <ClInclude Include="glm\vec3.hpp" />
     <ClInclude Include="glm\vec4.hpp" />
     <ClInclude Include="glm\vector_relational.hpp" />
-    <ClInclude Include="headerFiles\camera.h" />
     <ClInclude Include="headerFiles\glew_setup.h" />
     <ClInclude Include="headerFiles\orbit-Camera.h" />
     <ClInclude Include="headerFiles\particle-system.h" />

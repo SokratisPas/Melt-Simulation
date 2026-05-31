@@ -1311,9 +1311,6 @@
     <ClInclude Include="glm\vector_relational.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="headerFiles\camera.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="headerFiles\glew_setup.h">
       <Filter>Header Files</Filter>
     </ClInclude>

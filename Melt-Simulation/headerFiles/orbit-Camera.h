@@ -13,7 +13,7 @@ public:
 
 	float fov = 45.0f; 
 
-	float distanceToTarget = 20.0f;
+	float distanceToTarget = 50.0f;
 	glm::vec3 target = glm::vec3(0.5f, 0.5f, 0.5f); // target where camera looks
 
 	float cameraSensitivity = 0.2f;
@@ -23,6 +23,10 @@ public:
 	double lastMouseX = 0.0f;	// last mouse x pos
 	double lastMouseY = 0.0f;	// last mouse y pos
 
+	bool showOrtho = false;		// show orthocanonical projection
+
+	float orthoSize = 30.0f;	// size for orth projection
+
 	// ================================
 	// ======== functions =============
 	// 
@@ -30,7 +34,12 @@ public:
 	// projection
 	glm::mat4 calcProjection(int width, int height)
 	{
-		return glm::perspective(glm::radians(fov), (float)width / (float)height, 0.1f, 100.0f);
+		float aspectRatio = (float)width / (float)height;
+
+		if (showOrtho)
+			return glm::ortho(-orthoSize * aspectRatio, orthoSize * aspectRatio, -orthoSize, orthoSize, 0.1f, 200.0f);		
+
+		return glm::perspective(glm::radians(fov), aspectRatio, 0.1f, 200.0f);
 	}
 
 	// ---------------------------------------
@@ -74,5 +83,35 @@ public:
 
 		if (pitch > 89.0f) pitch = 89.0f;
 		if (pitch < -89.0f) pitch = -89.0f;
+	}
+
+	// --------------------------------------
+	// zoom with keyboard
+	void zoomWith_Z()
+	{
+		if (showOrtho)	// ortho zoom
+		{
+			orthoSize -= 2.0f;
+			orthoSize = glm::clamp(orthoSize, 5.0f, 100.0f);
+		}
+		else {			// perspective zoom
+			distanceToTarget -= 0.5f;
+			distanceToTarget = glm::clamp(distanceToTarget, 1.0f, 100.0f);
+		}
+	}
+
+	// --------------------------------------
+	// unzoom with keyboard
+	void unzoomWith_X()
+	{
+		if (showOrtho)	// ortho unzoom
+		{
+			orthoSize += 2.0f;
+			orthoSize = glm::clamp(orthoSize, 5.0f, 100.0f);
+		}
+		else {			// perspective unzoom
+			distanceToTarget += 0.5f;
+			distanceToTarget = glm::clamp(distanceToTarget, 1.0f, 100.0f);
+		}
 	}
 };

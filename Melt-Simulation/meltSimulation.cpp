@@ -24,7 +24,7 @@
 #include "headerFiles/POSCAR-parser.h"
 
 
-#define INPUT_FILE "SrTiO3.poscar"
+#define INPUT_FILE "fe_np.poscar"
 
 // ==== particle vertex struct =====
 struct particleVertex {
@@ -86,15 +86,6 @@ int main(void)
     int N = poscar.atoms.size();
     std::cout << "Number of particles: " << N << "\n";
 
-    for (size_t i = 0; i < poscar.atoms.size(); ++i)
-    {
-        std::cout
-            << i << " "
-            << poscar.atoms[i].element << " "
-            << poscar.atoms[i].x << " "
-            << poscar.atoms[i].y << " "
-            << poscar.atoms[i].z << '\n';
-    }
 
     // ==== GLFW window initialization ========
     GLFWwindow* window;
@@ -342,6 +333,10 @@ int main(void)
                 ImGui::Text("%s", poscar.elementTypes[i].c_str());
             }
 
+            // number of particles
+            ImGui::Separator();
+            ImGui::Text("Number of atoms : %d", N);
+
             // change partile scale 
             ImGui::Separator();
             ImGui::SliderFloat("Radius", &particleRadius, 0.4f, 4.0f);
@@ -395,6 +390,22 @@ void processInput(GLFWwindow* window)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
+
+    // zoom 
+    if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS)
+        cam.zoomWith_Z();
+
+    // unzoom
+    if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS)
+        cam.unzoomWith_X();
+
+    // ortho projection
+    if (glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS)
+        cam.showOrtho = true;
+
+    // perpective projection
+    if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS)
+        cam.showOrtho = false;
 }
 
 // -----------------------------------------

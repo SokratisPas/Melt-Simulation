@@ -295,6 +295,7 @@
     <None Include="glm\gtx\vector_angle.inl" />
     <None Include="glm\gtx\vector_query.inl" />
     <None Include="glm\gtx\wrap.inl" />
+    <None Include="input\fe_np.poscar" />
     <None Include="input\SrTiO3.poscar" />
     <None Include="vertexShaders\meltSimulation.vert" />
     <None Include="vertexShaders\meltSimulation2.vert" />

@@ -440,6 +440,7 @@
     <None Include="vertexShaders\meltSimulation.vert" />
     <None Include="vertexShaders\meltSimulation2.vert" />
     <None Include="input\SrTiO3.poscar" />
+    <None Include="input\fe_np.poscar" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="glm\detail\_features.hpp">

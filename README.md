@@ -5,8 +5,12 @@
 A molecular dynamics simulation of a Lennard-Jones solid using an FCC lattice.
 The simulation uses Velocity Verlet integration, periodic boundary conditions,
 a version of the neighbor lists algorithm, and an optional thermostat.
-
 Particles are rendered in real time using OpenGL.
+
+
+## Screenshot
+
+![Simulation](images/meltSimScreenshot.png)
 
 
 ## Features
@@ -23,7 +27,7 @@ Particles are rendered in real time using OpenGL.
 - Output file with simulation variables
 
 
-- ## Controls
+ ## Controls
 
 - Right Mouse Button: Rotate camera
 - Mouse Wheel: Zoom

@@ -30,7 +30,7 @@
 // In order to have full cube with atoms in every position available use: 
 // Number of atoms = 4 * n^3 , where n = 1, 2, 3, ...
 // For example : N = 256, 500, 864, 1372, 2048, 2916, 4000.
-#define N 2916
+#define N 864
 //
 // For the use of the thermostat set USE_THERMOSTAT == 1.
 #define USE_THERMOSTAT 1
@@ -122,8 +122,13 @@ int main(void)
 
     // ======== ImGui initialization =======
     ImGui::CreateContext();
+    ImGui::GetIO().IniFilename = nullptr;   // dont create imgui.ini
     ImGui_ImplGlfwGL3_Init(window, true);
     ImGui::StyleColorsDark();
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.WindowRounding = 10.0f;   // round window
+    style.FrameRounding = 5.0f;     // round bottons etc
+    style.GrabRounding = 8.0f;      // round slide bars
 
     bool showWindow = true;
     bool startSimulation = false;
@@ -335,7 +340,6 @@ int main(void)
     {
         processInput(window);
 
-        ImGui_ImplGlfwGL3_NewFrame();
 
         glClearColor(0.1f, 0.04f, 0.25f, 1.0f); // background color  
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -497,8 +501,10 @@ int main(void)
 
 
         // ====== ImGui window =======
+        ImGui_ImplGlfwGL3_NewFrame();
         if (showWindow)
         {
+            ImGui::SetNextWindowSize(ImVec2(250.0f, 250.0f), ImGuiCond_Always); // Always same size of window
             ImGui::Begin("Settings", &showWindow);
 
             // start - stop simulation

@@ -30,7 +30,7 @@
 // In order to have full cube with atoms in every position available use: 
 // Number of atoms = 4 * n^3 , where n = 1, 2, 3, ...
 // For example : N = 256, 500, 864, 1372, 2048, 2916, 4000.
-#define N 864
+#define N 2048
 //
 // For the use of the thermostat set USE_THERMOSTAT == 1.
 #define USE_THERMOSTAT 1
